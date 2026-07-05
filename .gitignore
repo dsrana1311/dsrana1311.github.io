@@ -1,0 +1,15 @@
+node_modules
+dist
+.DS_Store
+*.local
+
+# Large source originals (the versions the site actually serves live in public/)
+/Scene4_HiddenTriangle.mp4
+/Sequence 01.mp4
+/Sequence 02.mp4
+/bgm.mp3
+/car.png
+
+# Large design-reference HTML dumps (not part of the site build)
+/Deepak Rana - Design Language.html
+/Homepage - The Playhead.html
