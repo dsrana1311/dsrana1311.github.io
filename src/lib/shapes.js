@@ -8,6 +8,10 @@
 export const N = 44
 export const STAGE_W = 1064
 export const STAGE_H = 320
+// The story runs in REVERSE chronology: it opens on the present
+// (sine — the live lessons) and traces back to the origin (gear —
+// the mechanical-engineering student). buildLayouts() returns the
+// shapes already in that present→past order.
 
 const cx = STAGE_W / 2
 const cy = STAGE_H / 2
@@ -44,8 +48,11 @@ function resample(verts, n) {
 let cache = null
 
 /**
- * Build the five chapter layouts, in chapter order:
- * gear → car chassis → voice waveform → app window → sine.
+ * Build the four chapter layouts, in reverse-chronological order:
+ * sine (the present — live lessons) → voice waveform (3Blue1Brown,
+ * with DubDesk folded into it) → car chassis (Maruti) → gear (the
+ * mechanical-engineering origin). We build each shape once and then
+ * return them present→past.
  */
 export function buildLayouts() {
   if (cache) return cache
@@ -80,31 +87,17 @@ export function buildLayouts() {
     wave.push([x, cy + (i % 2 === 0 ? -amp : amp)])
   }
 
-  // app window (DubDesk — the tool)
-  const rw = 460
-  const rh = 220
-  const rx0 = cx - rw / 2
-  const ry0 = cy - rh / 2
-  const per = 2 * (rw + rh)
-  const win = []
-  for (let i = 0; i < N; i++) {
-    const p = (i / N) * per
-    let X, Y
-    if (p < rw) { X = rx0 + p; Y = ry0 }
-    else if (p < rw + rh) { X = rx0 + rw; Y = ry0 + (p - rw) }
-    else if (p < rw + rh + rw) { X = rx0 + rw - (p - rw - rh); Y = ry0 + rh }
-    else { X = rx0; Y = ry0 + rh - (p - rw - rh - rw) }
-    win.push([X, Y])
-  }
-
-  // sine (YouTube — visual math)
+  // sine (The Physics Frame — the present, visual math you can push on)
   const sine = []
   for (let i = 0; i < N; i++) {
     const x = 60 + (i / (N - 1)) * (STAGE_W - 120)
     sine.push([x, cy - 86 * Math.sin((i / (N - 1)) * Math.PI * 4)])
   }
 
-  cache = [gear, chassis, wave, win, sine]
+  // reverse-chronological: present (sine) → 3b1b (wave) → Maruti
+  // (chassis) → origin (gear). DubDesk no longer has its own shape;
+  // it lives inside the 3b1b stop.
+  cache = [sine, wave, chassis, gear]
   return cache
 }
 
@@ -128,9 +121,35 @@ export function piLayout() {
  */
 export function idlePerturb(shapeIdx, pts, time) {
   const out = new Array(pts.length)
+  // indices follow the reverse-chronological order returned by
+  // buildLayouts(): 0 = sine, 1 = waveform, 2 = chassis, 3 = gear.
   switch (shapeIdx) {
     case 0: {
-      // gear: slow continuous rotation about its hub
+      // sine (the present): a travelling wave rides the curve
+      for (let i = 0; i < pts.length; i++) {
+        const phase = (pts[i][0] / STAGE_W) * Math.PI * 4
+        out[i] = [pts[i][0], pts[i][1] + 9 * Math.sin(time * 0.0024 - phase)]
+      }
+      return out
+    }
+    case 1: {
+      // waveform (3b1b): it speaks — amplitude breathes per point
+      for (let i = 0; i < pts.length; i++) {
+        const dy = pts[i][1] - cy
+        out[i] = [pts[i][0], cy + dy * (1 + 0.24 * Math.sin(time * 0.004 + i * 0.55))]
+      }
+      return out
+    }
+    case 2: {
+      // chassis (Maruti): gentle bob plus a hint of road vibration
+      const bob = 2.6 * Math.sin(time * 0.0018)
+      for (let i = 0; i < pts.length; i++) {
+        out[i] = [pts[i][0], pts[i][1] + bob + 0.7 * Math.sin(time * 0.016 + i * 1.7)]
+      }
+      return out
+    }
+    case 3: {
+      // gear (the origin): slow continuous rotation about its hub
       const a = time * 0.00022
       const cos = Math.cos(a)
       const sin = Math.sin(a)
@@ -138,38 +157,6 @@ export function idlePerturb(shapeIdx, pts, time) {
         const dx = pts[i][0] - cx
         const dy = pts[i][1] - cy
         out[i] = [cx + dx * cos - dy * sin, cy + dx * sin + dy * cos]
-      }
-      return out
-    }
-    case 1: {
-      // chassis: gentle bob plus a hint of road vibration
-      const bob = 2.6 * Math.sin(time * 0.0018)
-      for (let i = 0; i < pts.length; i++) {
-        out[i] = [pts[i][0], pts[i][1] + bob + 0.7 * Math.sin(time * 0.016 + i * 1.7)]
-      }
-      return out
-    }
-    case 2: {
-      // waveform: it speaks — amplitude breathes per point
-      for (let i = 0; i < pts.length; i++) {
-        const dy = pts[i][1] - cy
-        out[i] = [pts[i][0], cy + dy * (1 + 0.24 * Math.sin(time * 0.004 + i * 0.55))]
-      }
-      return out
-    }
-    case 3: {
-      // window: barely-there breathing scale
-      const k = 1 + 0.007 * Math.sin(time * 0.0015)
-      for (let i = 0; i < pts.length; i++) {
-        out[i] = [cx + (pts[i][0] - cx) * k, cy + (pts[i][1] - cy) * k]
-      }
-      return out
-    }
-    case 4: {
-      // sine: a travelling wave rides the curve
-      for (let i = 0; i < pts.length; i++) {
-        const phase = (pts[i][0] / STAGE_W) * Math.PI * 4
-        out[i] = [pts[i][0], pts[i][1] + 9 * Math.sin(time * 0.0024 - phase)]
       }
       return out
     }

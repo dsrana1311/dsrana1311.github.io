@@ -65,6 +65,91 @@ function Glyph({ kind }) {
   )
 }
 
+// A compact, illustrated explainer for Snell's law that appears once the
+// beam lands on target. Instead of just printing the formula, it shows a
+// live little diagram: a ray crossing from air into glass, bending toward
+// the normal, with the two angles and refractive indices labelled — plus a
+// one-line intuition. Slower medium ⇒ steeper bend.
+function SnellCard({ onClose }) {
+  // geometry of the mini diagram (SVG viewBox 0..160 x 0..120)
+  const cx = 80, iy = 60           // interface crossing point
+  const thetaI = 42 * Math.PI / 180  // incidence angle from the normal
+  const n1 = 1.0, n2 = 1.5
+  // Snell: n1 sinθ1 = n2 sinθ2  →  θ2 = asin(n1/n2 · sinθ1)
+  const thetaT = Math.asin((n1 / n2) * Math.sin(thetaI))
+  const L = 52
+  // incoming ray (upper-left → crossing), measured from the vertical normal
+  const inX = cx - Math.sin(thetaI) * L
+  const inY = iy - Math.cos(thetaI) * L
+  // refracted ray (crossing → lower-right), bent toward the normal
+  const outX = cx + Math.sin(thetaT) * L
+  const outY = iy + Math.cos(thetaT) * L
+
+  return (
+    <div className="snell-card" role="dialog" aria-label="Snell's law explainer">
+      <button className="snell-close" onClick={onClose} aria-label="Dismiss">×</button>
+      <div className="snell-head">
+        <span className="snell-kicker">◎ TARGET ACQUIRED</span>
+        <span className="snell-title">Why the beam bends — Snell's Law</span>
+      </div>
+
+      <div className="snell-body">
+        <svg className="snell-diagram" viewBox="0 0 160 120" aria-hidden="true">
+          {/* two media */}
+          <rect x="0" y="0" width="160" height={iy} className="snell-air" />
+          <rect x="0" y={iy} width="160" height={120 - iy} className="snell-glass" />
+          <text x="8" y="16" className="snell-medium">air · n₁ = 1.00</text>
+          <text x="8" y={iy + 18} className="snell-medium">glass · n₂ = 1.50</text>
+          {/* interface + normal */}
+          <line x1="0" y1={iy} x2="160" y2={iy} className="snell-interface" />
+          <line x1={cx} y1={iy - 46} x2={cx} y2={iy + 46} className="snell-normal" />
+          {/* angle arcs */}
+          <path
+            d={describeArc(cx, iy, 20, -90, -90 + thetaI * 180 / Math.PI)}
+            className="snell-arc"
+          />
+          <path
+            d={describeArc(cx, iy, 20, 90 - thetaT * 180 / Math.PI, 90)}
+            className="snell-arc"
+          />
+          <text x={cx - 30} y={iy - 22} className="snell-angle">θ₁</text>
+          <text x={cx + 20} y={iy + 30} className="snell-angle">θ₂</text>
+          {/* the ray */}
+          <line x1={inX} y1={inY} x2={cx} y2={iy} className="snell-ray-in" />
+          <line x1={cx} y1={iy} x2={outX} y2={outY} className="snell-ray-out" />
+          <circle cx={cx} cy={iy} r="2.4" className="snell-node" />
+        </svg>
+
+        <div className="snell-explain">
+          <div className="snell-eq">
+            n₁&nbsp;sin&nbsp;θ₁ = n₂&nbsp;sin&nbsp;θ₂
+          </div>
+          <p>
+            Light slows in denser glass, so its wavefronts pile up and the ray
+            pivots <em>toward the normal</em>. The bigger the jump in refractive
+            index n, the sharper the bend — that's how a lens steers a beam.
+          </p>
+          <div className="snell-readout">
+            θ₁ = {Math.round(thetaI * 180 / Math.PI)}° &nbsp;→&nbsp; θ₂ ={' '}
+            {Math.round(thetaT * 180 / Math.PI)}°
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// SVG arc-path helper (polar → cartesian sweep) for the angle markers.
+function describeArc(cx, cy, r, startDeg, endDeg) {
+  const p = (deg) => {
+    const a = (deg - 90) * Math.PI / 180
+    return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) }
+  }
+  const s = p(startDeg), e = p(endDeg)
+  const large = Math.abs(endDeg - startDeg) > 180 ? 1 : 0
+  return `M ${s.x} ${s.y} A ${r} ${r} 0 ${large} 1 ${e.x} ${e.y}`
+}
+
 export default function LaserLab() {
   const canvasRef = useRef(null)
   const wrapRef = useRef(null)
@@ -74,12 +159,22 @@ export default function LaserLab() {
   const [selected, setSelected] = useState(-1)   // tool whose index slider shows
   const [indexVal, setIndexVal] = useState(1.5)
   const [ghost, setGhost] = useState(null)       // {type} while dragging from palette
+  const [snellDismissed, setSnellDismissed] = useState(false)
+  const wasSolved = useRef(false)
 
   useEffect(() => {
     const engine = createOpticsEngine(canvasRef.current, { onChange: setStats })
     engineRef.current = engine
     return () => engine.destroy()
   }, [])
+
+  // Reset the explainer's dismissed flag on each fresh solve so it reappears
+  // when the player lands a new target (but stays hidden if they dismissed it
+  // and the beam is still on target).
+  useEffect(() => {
+    if (stats.solved && !wasSolved.current) setSnellDismissed(false)
+    wasSolved.current = stats.solved
+  }, [stats.solved])
 
   const coords = (e) => {
     const r = canvasRef.current.getBoundingClientRect()
@@ -226,11 +321,14 @@ export default function LaserLab() {
             DRAG BODY: MOVE · DRAG HANDLE: ROTATE · 2×CLICK: REMOVE
           </div>
         </div>
-        {stats.solved && (
+        {stats.solved && snellDismissed && (
           <div className="laser-solved-badge">
             <span>◎ BEAM ON TARGET</span>
             <span className="laser-solved-law">n₁ sin θ₁ = n₂ sin θ₂</span>
           </div>
+        )}
+        {stats.solved && !snellDismissed && (
+          <SnellCard onClose={() => setSnellDismissed(true)} />
         )}
       </div>
 

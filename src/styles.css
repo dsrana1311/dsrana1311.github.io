@@ -2,10 +2,10 @@
    Design tokens — "Deepak Rana — The Playhead" (design v2)
    ============================================================ */
 :root {
-  --bg: #0B0E14;            /* Deep Field */
-  --surface: #121826;       /* Surface */
+  --bg: #0A0C10;            /* Deep Field */
+  --surface: #11151C;       /* Surface */
   --chalk: #E8EDF4;         /* primary text */
-  --graphite: #8A94A6;      /* muted text */
+  --graphite: #9BA6B8;      /* muted text */
 
   --red: #FC6255;           /* Curl Red — student / launcher */
   --orange: #FF9F45;        /* Flux Orange — Maruti Suzuki */
@@ -23,11 +23,21 @@
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
+/* hide the page scrollbar — the playhead track is the scroll indicator */
+html {
+  scrollbar-width: none;    /* Firefox */
+  -ms-overflow-style: none; /* legacy Edge */
+}
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none;            /* Chrome / Safari / Edge */
+}
+
 body {
   background: var(--bg);
   color: var(--chalk);
   font-family: var(--sans);
-  font-size: 17px;
+  font-size: 18px;
   line-height: 1.6;
   overflow-x: hidden;
 }
@@ -59,21 +69,21 @@ button {
 /* ---------- shared primitives ---------- */
 .mono-label {
   font-family: var(--mono);
-  font-size: 13px;
+  font-size: 14px;
   letter-spacing: 0.14em;
   color: var(--graphite);
 }
 
 .section-kicker {
   font-family: var(--mono);
-  font-size: 13px;
+  font-size: 14px;
   letter-spacing: 0.14em;
   color: var(--blue);
 }
 
 .chip {
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 13px;
   letter-spacing: 0.1em;
   border-radius: 100px;
   padding: 5px 14px;
@@ -83,8 +93,8 @@ button {
 .btn-primary {
   display: inline-block;
   font-weight: 600;
-  font-size: 15px;
-  padding: 11px 22px;
+  font-size: 16px;
+  padding: 12px 24px;
   border-radius: 6px;
   color: var(--bg);
   text-decoration: none;
@@ -99,8 +109,8 @@ button {
   display: inline-block;
   border: 1px solid rgba(138, 148, 166, 0.35);
   color: var(--chalk);
-  font-size: 15px;
-  padding: 11px 22px;
+  font-size: 16px;
+  padding: 12px 24px;
   border-radius: 6px;
   text-decoration: none;
   transition: border-color 0.2s ease;
@@ -109,7 +119,7 @@ button {
 
 .mono-link {
   font-family: var(--mono);
-  font-size: 14px;
+  font-size: 15px;
   letter-spacing: 0.08em;
   color: var(--blue);
   text-decoration: none;
@@ -124,10 +134,6 @@ button {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
-@keyframes ph-hint-pulse {
-  0%, 100% { opacity: 0.55; }
-  50% { opacity: 1; }
-}
 @keyframes kf-pop {
   0% { transform: translate(-50%, -50%) rotate(45deg) scale(1); }
   40% { transform: translate(-50%, -50%) rotate(45deg) scale(1.9); }
@@ -137,11 +143,12 @@ button {
    THE PLAYHEAD — scrollytelling stage
    ============================================================ */
 
-/* the tall scroll runway: scrolling it IS scrubbing the timeline */
+/* the tall scroll runway: scrolling it IS scrubbing the timeline.
+   no z-index here — it would create a stacking context that traps the
+   dossier (z-index 50) below the contact section (z-index 1). */
 .playhead-scroll {
   position: relative;
   height: 700vh;
-  z-index: 1;
 }
 
 .playhead-stage {
@@ -151,9 +158,9 @@ button {
   height: 100dvh;
   display: flex;
   flex-direction: column;
-  max-width: 1160px;
+  max-width: 1440px;
   margin: 0 auto;
-  padding: 40px 48px 32px;
+  padding: 40px clamp(24px, 3vw, 48px) 32px;
   overflow: hidden;
 }
 
@@ -163,7 +170,7 @@ button {
   align-items: center;
   gap: 14px;
   font-family: var(--mono);
-  font-size: 13px;
+  font-size: 14px;
   letter-spacing: 0.14em;
   color: var(--graphite);
   flex-wrap: wrap;
@@ -191,25 +198,13 @@ button {
   padding-top: 28px;
   display: flex;
   align-items: baseline;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 24px;
   flex-wrap: wrap;
 }
-.ph-headline {
-  font-family: var(--serif);
-  font-weight: 600;
-  font-size: clamp(24px, 3vw, 34px);
-  line-height: 1.2;
-  letter-spacing: -0.01em;
-}
-.ph-headline span {
-  color: var(--graphite);
-  font-weight: 400;
-  font-style: italic;
-}
 .ph-year {
   font-family: var(--mono);
-  font-size: 15px;
+  font-size: 16px;
   letter-spacing: 0.1em;
   transition: color 0.4s ease;
   padding: 2px 6px;
@@ -230,22 +225,6 @@ button {
   height: 100%;
   overflow: visible;
 }
-.ph-hint {
-  position: absolute;
-  left: 50%;
-  bottom: 6px;
-  transform: translateX(-50%);
-  font-family: var(--mono);
-  font-size: 12px;
-  letter-spacing: 0.14em;
-  color: var(--graphite);
-  animation: ph-hint-pulse 2.4s ease-in-out infinite;
-  pointer-events: none;
-  white-space: nowrap;
-  transition: opacity 0.6s ease;
-}
-.ph-hint.gone { opacity: 0 !important; animation: none; }
-
 /* chapter readout */
 .ph-readout {
   min-height: 190px;
@@ -263,19 +242,20 @@ button {
 }
 .ph-chap-label {
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 13px;
   letter-spacing: 0.16em;
+  transition: color 0.45s ease;
 }
 .ph-chap-title {
   font-family: var(--serif);
   font-weight: 600;
-  font-size: clamp(24px, 2.9vw, 32px);
+  font-size: clamp(26px, 2.9vw, 36px);
   line-height: 1.15;
 }
 .ph-chap-body {
   color: var(--graphite);
-  font-size: 16px;
-  max-width: 540px;
+  font-size: 17px;
+  max-width: 640px;
 }
 .ph-read-side {
   display: flex;
@@ -288,7 +268,7 @@ button {
 .ph-dossier-link {
   align-self: flex-start;
   font-family: var(--mono);
-  font-size: 13px;
+  font-size: 14px;
   letter-spacing: 0.08em;
   border: 1px solid;
   border-radius: 100px;
@@ -300,6 +280,62 @@ button {
 .ph-dossier-link:hover {
   background: color-mix(in srgb, currentColor 12%, transparent);
   transform: translateY(-1px);
+}
+
+/* manim-style text transform (TransformText) */
+.tt { position: relative; }
+span.tt { display: inline-block; }
+.tt-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+.tt-word { display: inline-block; }
+.tt-char { display: inline-block; }
+.tt-ghosts {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.tt-ghost {
+  position: absolute;
+  display: inline-block;
+}
+
+/* scroll cue — teaches that scroll is the playhead. Kept in flow
+   (opacity only) so nothing jumps when it appears or retires. */
+.ph-scroll-cue {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding-bottom: 12px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.26em;
+  color: var(--graphite);
+  opacity: 0;
+  transition: opacity 0.8s ease;
+  pointer-events: none;
+  user-select: none;
+}
+.ph-scroll-cue.show { opacity: 1; }
+.ph-cue-chevron { display: block; flex: none; overflow: visible; }
+.ph-scroll-cue.show .ph-cue-chevron path {
+  animation: cue-drip 1.8s ease-in-out infinite;
+}
+.ph-scroll-cue.show .ph-cue-chevron path:last-child {
+  animation-delay: 0.22s;
+}
+@keyframes cue-drip {
+  0%, 100% { transform: translateY(0); opacity: 1; }
+  50% { transform: translateY(3px); opacity: 0.45; }
 }
 
 /* player bar */
@@ -389,21 +425,24 @@ button {
   position: absolute;
   top: 40px;
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 11.5px;
   letter-spacing: 0.1em;
   color: var(--graphite);
+  white-space: nowrap;
   pointer-events: none;
   transition: color 0.3s ease;
 }
 
 /* ============================================================
-   DOSSIER — the "full scene" bottom sheet
+   DOSSIER — centered frosted-glass modal
    ============================================================ */
 .dossier-backdrop {
   position: fixed;
   inset: 0;
   z-index: 40;
-  background: rgba(11, 14, 20, 0.55);
+  background: rgba(11, 14, 20, 0.45);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.48s var(--ease);
@@ -413,22 +452,65 @@ button {
 .dossier-sheet {
   position: fixed;
   left: 50%;
-  bottom: 0;
-  transform: translate(-50%, 105%);
-  width: min(920px, 100vw);
+  top: 50%;
+  /* closed: parked on the clicked button (--from-x/y are set inline as
+     offsets from the viewport center), scaled down to a dot */
+  transform: translate(calc(-50% + var(--from-x, 0px)), calc(-50% + var(--from-y, 0px))) scale(0.08);
+  opacity: 0;
+  pointer-events: none;
+  width: min(1040px, calc(100vw - 32px));
   max-height: 86vh;
   max-height: 86dvh;
   z-index: 50;
-  background: rgba(18, 24, 38, 0.92);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  border-radius: 12px 12px 0 0;
-  box-shadow: 0 -24px 64px rgba(0, 0, 0, 0.5);
-  transition: transform 0.48s var(--ease);
+  /* frosted glass: the blur affects only what is BEHIND the panel,
+     so the panel's own content stays fully sharp */
+  background: rgba(18, 24, 38, 0.62);
+  backdrop-filter: blur(26px) saturate(1.4);
+  -webkit-backdrop-filter: blur(26px) saturate(1.4);
+  border: 1px solid rgba(232, 237, 244, 0.14);
+  border-radius: 16px;
+  box-shadow:
+    0 24px 80px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(232, 237, 244, 0.08);
+  /* opacity settles faster than the travel, so the panel is already
+     visible while it flies from the button to the center */
+  transition: transform 0.48s var(--ease), opacity 0.3s var(--ease);
   overflow-y: auto;
   overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(138, 148, 166, 0.35) transparent;
 }
-.dossier-sheet.open { transform: translate(-50%, 0); }
+.dossier-sheet.open {
+  transform: translate(-50%, -50%) scale(1);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* nested dossier (a deep-dive opened from inside another dossier):
+   its own backdrop + sheet stack above the parent. It grows from the
+   center (no button origin) and is slightly narrower so the parent
+   frame peeks out behind it, reinforcing the "inside" relationship. */
+.dossier-backdrop.nested { z-index: 60; }
+.dossier-sheet.nested {
+  z-index: 70;
+  width: min(960px, calc(100vw - 56px));
+  max-height: 84vh;
+  max-height: 84dvh;
+}
+.dossier-sheet::-webkit-scrollbar { width: 10px; }
+.dossier-sheet::-webkit-scrollbar-track { background: transparent; }
+.dossier-sheet::-webkit-scrollbar-thumb {
+  background: rgba(138, 148, 166, 0.35);
+  border-radius: 5px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+
+/* no backdrop-filter support: fall back to a near-opaque panel
+   so the content never sits on raw page pixels */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .dossier-sheet { background: rgba(18, 24, 38, 0.96); }
+}
 
 .dossier-content {
   padding: 32px 40px 48px;
@@ -462,10 +544,10 @@ button {
 .dossier-title {
   font-family: var(--serif);
   font-weight: 600;
-  font-size: clamp(24px, 3.2vw, 32px);
+  font-size: clamp(26px, 3.2vw, 36px);
   line-height: 1.15;
 }
-.dossier-intro { color: var(--graphite); font-size: 16px; max-width: 620px; }
+.dossier-intro { color: var(--graphite); font-size: 17px; max-width: 700px; }
 .dossier-esc-hint {
   font-family: var(--mono);
   font-size: 11px;
@@ -499,6 +581,29 @@ button {
 .video-embed video {
   object-fit: cover;
   background: #000;
+}
+.video-link {
+  position: absolute;
+  inset: 0;
+  display: block;
+  cursor: pointer;
+}
+/* Play cue: hinted at rest, fully lit on hover, so the loop reads as clickable. */
+.video-link-cue {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(0, 0, 0, 0.15);
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+.video-link:hover .video-link-cue,
+.video-link:focus-visible .video-link-cue {
+  opacity: 1;
 }
 .video-placeholder {
   position: absolute;
@@ -689,6 +794,106 @@ button {
   to   { opacity: 1; transform: none; }
 }
 
+/* Snell's-law explainer card (shown on solve) */
+.snell-card {
+  position: absolute;
+  top: 12px; right: 14px;
+  width: 300px;
+  max-width: calc(100% - 28px);
+  padding: 12px 13px 13px;
+  border-radius: 10px;
+  border: 1px solid rgba(131, 224, 106, 0.55);
+  background: rgba(12, 18, 30, 0.94);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+  font-family: var(--mono);
+  animation: laser-pop 0.4s var(--ease);
+  z-index: 3;
+}
+.snell-close {
+  position: absolute;
+  top: 6px; right: 8px;
+  width: 20px; height: 20px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: rgba(232, 237, 244, 0.5);
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 0.15s var(--ease);
+}
+.snell-close:hover { color: var(--green); }
+.snell-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 9px;
+}
+.snell-kicker {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--green);
+}
+.snell-title {
+  font-family: var(--sans, inherit);
+  font-size: 13px;
+  letter-spacing: 0.01em;
+  color: rgba(232, 237, 244, 0.92);
+}
+.snell-body {
+  display: flex;
+  gap: 11px;
+  align-items: flex-start;
+}
+.snell-diagram {
+  flex: 0 0 118px;
+  width: 118px; height: 88px;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.snell-air   { fill: rgba(88, 196, 221, 0.06); }
+.snell-glass { fill: rgba(88, 196, 221, 0.16); }
+.snell-medium {
+  font-family: var(--mono);
+  font-size: 6.5px;
+  letter-spacing: 0.02em;
+  fill: rgba(232, 237, 244, 0.6);
+}
+.snell-interface { stroke: rgba(88, 196, 221, 0.7); stroke-width: 1; }
+.snell-normal    { stroke: rgba(138, 148, 166, 0.55); stroke-width: 0.8; stroke-dasharray: 3 2; }
+.snell-arc       { fill: none; stroke: rgba(255, 225, 77, 0.8); stroke-width: 0.9; }
+.snell-angle {
+  font-family: var(--mono);
+  font-size: 8px;
+  fill: rgba(255, 225, 77, 0.95);
+}
+.snell-ray-in  { stroke: var(--red); stroke-width: 1.8; stroke-linecap: round; }
+.snell-ray-out { stroke: var(--red); stroke-width: 1.8; stroke-linecap: round; }
+.snell-node    { fill: #fff; }
+.snell-explain { flex: 1 1 auto; min-width: 0; }
+.snell-eq {
+  font-size: 12px;
+  color: var(--green);
+  letter-spacing: 0.03em;
+  margin-bottom: 6px;
+}
+.snell-explain p {
+  font-family: var(--sans, inherit);
+  font-size: 11px;
+  line-height: 1.45;
+  color: rgba(232, 237, 244, 0.78);
+  margin: 0 0 7px;
+}
+.snell-explain em { color: rgba(232, 237, 244, 0.95); font-style: italic; }
+.snell-readout {
+  font-size: 10.5px;
+  letter-spacing: 0.05em;
+  color: rgba(88, 196, 221, 0.95);
+  padding-top: 6px;
+  border-top: 1px solid rgba(138, 148, 166, 0.18);
+}
+
 /* controls */
 .laser-controls {
   display: flex;
@@ -803,9 +1008,9 @@ button {
   flex-direction: column;
   gap: 6px;
 }
-.step-num { font-family: var(--mono); font-size: 12px; letter-spacing: 0.1em; }
-.step-name { font-weight: 600; font-size: 14px; }
-.step-desc { font-size: 13px; color: var(--graphite); line-height: 1.45; }
+.step-num { font-family: var(--mono); font-size: 13px; letter-spacing: 0.1em; }
+.step-name { font-weight: 600; font-size: 15px; }
+.step-desc { font-size: 14px; color: var(--graphite); line-height: 1.45; }
 
 .fact-row {
   display: flex;
@@ -821,15 +1026,296 @@ button {
   width: 138px;
   flex: none;
 }
-.fact-val { font-size: 15px; }
+.fact-val { font-size: 16px; }
 
 .cta-row { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; margin-top: 4px; }
 
+/* ---------- tabbed lessons lab (SCENE 01 / present) ---------- */
+.lab-switcher {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.lab-tabs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.lab-tabs-label {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  margin-right: 4px;
+}
+.lab-tab {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  letter-spacing: 0.1em;
+  padding: 6px 14px;
+  border-radius: 100px;
+  border: 1px solid rgba(138, 148, 166, 0.3);
+  color: var(--graphite);
+  background: transparent;
+  transition: all 0.2s ease;
+}
+.lab-tab:hover { border-color: var(--chalk); color: var(--chalk); }
+.lab-tab.on {
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
+.lab-caption {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 2px;
+  animation: ph-fade-in 0.35s var(--ease) both;
+}
+.lab-caption-title {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 20px;
+  line-height: 1.2;
+}
+.lab-caption-blurb {
+  color: var(--graphite);
+  font-size: 15.5px;
+  line-height: 1.5;
+  max-width: 680px;
+}
+.lab-stage { animation: ph-fade-in 0.35s var(--ease) both; }
+
+/* Two-column lesson card: screenshot left, description right. Keeps the
+   footprint short and the shot legible without dominating the section. */
+.lab-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: 26px;
+  align-items: center;
+  animation: ph-fade-in 0.35s var(--ease) both;
+}
+.lab-card .lesson-window {
+  align-self: center;
+  width: 100%;
+  max-width: 500px;
+}
+.lab-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.lab-card-body .lab-caption-title { font-size: 21px; }
+.lab-card-body .lab-caption-blurb { max-width: none; }
+.lab-card-cta {
+  align-self: flex-start;
+  margin-top: 4px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: 0.1em;
+  text-decoration: none;
+  padding: 8px 16px;
+  border-radius: 100px;
+  border: 1px solid currentColor;
+  background: color-mix(in srgb, currentColor 10%, transparent);
+  transition: background 0.2s var(--ease);
+}
+.lab-card-cta:hover { background: color-mix(in srgb, currentColor 20%, transparent); }
+@media (max-width: 640px) {
+  .lab-card {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
+/* ---------- the optics bench easter egg (typed: "laser") ----------
+   Sits above the dossier stack (40-70) because it can be summoned from
+   anywhere, including from on top of an open dossier. It has no click
+   origin to fly out of, so it simply resolves into place. */
+.egg-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(11, 14, 20, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s var(--ease);
+}
+.egg-backdrop.open { opacity: 1; pointer-events: auto; }
+
+.egg-sheet {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -48%) scale(0.96);
+  opacity: 0;
+  pointer-events: none;
+  width: min(920px, calc(100vw - 32px));
+  max-height: 88vh;
+  max-height: 88dvh;
+  z-index: 90;
+  background: rgba(18, 24, 38, 0.72);
+  backdrop-filter: blur(26px) saturate(1.4);
+  -webkit-backdrop-filter: blur(26px) saturate(1.4);
+  border: 1px solid rgba(88, 196, 221, 0.35);
+  border-radius: 16px;
+  box-shadow:
+    0 24px 80px rgba(0, 0, 0, 0.6),
+    0 0 40px rgba(88, 196, 221, 0.12),
+    inset 0 1px 0 rgba(232, 237, 244, 0.08);
+  transition: transform 0.4s var(--ease), opacity 0.28s var(--ease);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(138, 148, 166, 0.35) transparent;
+}
+.egg-sheet.open {
+  transform: translate(-50%, -50%) scale(1);
+  opacity: 1;
+  pointer-events: auto;
+}
+.egg-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 26px 28px 22px;
+}
+.egg-head { display: flex; align-items: center; gap: 12px; }
+.egg-diamond {
+  width: 9px;
+  height: 9px;
+  border: 1px solid var(--blue);
+  transform: rotate(45deg);
+}
+.egg-kicker { color: var(--blue); }
+@media (prefers-reduced-motion: reduce) {
+  .egg-sheet { transition: opacity 0.28s var(--ease); transform: translate(-50%, -50%) scale(1); }
+}
+
+/* ---------- lesson window (a lesson hosted on its own site) ---------- */
+.lesson-window {
+  display: block;
+  border: 1px solid rgba(138, 148, 166, 0.28);
+  border-radius: 10px;
+  overflow: hidden;
+  background: rgba(10, 14, 20, 0.5);
+  text-decoration: none;
+  transition: border-color 0.2s var(--ease), transform 0.2s var(--ease);
+}
+.lesson-window:hover,
+.lesson-window:focus-visible {
+  border-color: var(--lw-accent);
+  transform: translateY(-2px);
+}
+.lesson-chrome {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(138, 148, 166, 0.2);
+  background: rgba(255, 255, 255, 0.03);
+}
+.lesson-dots { display: flex; gap: 5px; }
+.lesson-dots i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(138, 148, 166, 0.35);
+}
+.lesson-url {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--graphite);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lesson-shot {
+  position: relative;
+  display: block;
+  aspect-ratio: 16 / 10;
+}
+.lesson-shot img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+}
+.lesson-veil {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 32px;
+  background: linear-gradient(
+    to bottom,
+    rgba(8, 11, 16, 0.15),
+    rgba(8, 11, 16, 0.75)
+  );
+  opacity: 0;
+  transition: opacity 0.2s var(--ease);
+}
+.lesson-window:hover .lesson-veil,
+.lesson-window:focus-visible .lesson-veil { opacity: 1; }
+.lesson-cta {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: 0.12em;
+  color: var(--bg);
+  padding: 9px 18px;
+  border-radius: 100px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lesson-window,
+  .lesson-veil { transition: none; }
+  .lesson-window:hover,
+  .lesson-window:focus-visible { transform: none; }
+}
+
+/* ---------- nested-dossier entry button (tool inside the work) ---------- */
+.nested-open {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  width: 100%;
+  text-align: left;
+  padding: 16px 18px;
+  border-radius: 10px;
+  border: 1px dashed rgba(138, 148, 166, 0.35);
+  background:
+    linear-gradient(135deg, rgba(255, 200, 87, 0.05), rgba(131, 193, 103, 0.05));
+  cursor: pointer;
+  transition: border-color 0.2s ease, transform 0.2s ease, background 0.2s ease;
+}
+.nested-open:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, currentColor 45%, transparent);
+  background:
+    linear-gradient(135deg, rgba(255, 200, 87, 0.09), rgba(131, 193, 103, 0.09));
+}
+.nested-open-note {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+  opacity: 0.85;
+}
+.nested-open-link {
+  font-family: var(--mono);
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  border-bottom: 1px dashed currentColor;
+  padding-bottom: 2px;
+}
+
 /* ---------- contact (post-credits scene) ---------- */
 .contact {
-  max-width: 1160px;
+  max-width: 1440px;
   margin: 0 auto;
-  padding: 120px 48px 64px;
+  padding: 120px clamp(24px, 3vw, 48px) 64px;
   position: relative;
   z-index: 1;
 }
@@ -849,21 +1335,51 @@ button {
   font-weight: 600;
   font-size: clamp(32px, 4.4vw, 48px);
 }
-.contact-line { font-family: var(--serif); font-size: clamp(18px, 2.2vw, 24px); }
+.contact-pitch {
+  font-family: var(--serif);
+  font-size: clamp(17px, 1.8vw, 21px);
+  line-height: 1.65;
+  color: var(--graphite);
+  max-width: 720px;
+}
+.contact-line { font-family: var(--serif); font-size: clamp(19px, 2.2vw, 26px); }
+.contact-lim-sub { font-size: 0.55em; margin-left: 1px; }
 .contact-fine { color: var(--graphite); font-style: italic; font-family: var(--serif); }
 .contact-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
-.contact-links { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 8px; }
+.contact-links { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 14px; }
+
+.btn-with-icon { display: inline-flex; align-items: center; gap: 9px; }
+.btn-icon { width: 17px; height: 17px; flex: none; }
+
+.icon-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 14px;
+  border: 1px solid rgba(138, 148, 166, 0.28);
+  border-radius: 999px;
+  color: var(--chalk);
+  text-decoration: none;
+  font-family: var(--mono);
+  font-size: 13.5px;
+  letter-spacing: 0.08em;
+  transition: border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+.icon-link-solo { padding: 9px; }
+.icon-link-glyph { width: 19px; height: 19px; flex: none; color: var(--graphite); transition: color 0.2s ease; }
+.icon-link:hover { border-color: var(--blue); color: var(--blue); transform: translateY(-1px); }
+.icon-link:hover .icon-link-glyph { color: var(--blue); }
 
 .site-footer {
-  max-width: 1160px;
+  max-width: 1440px;
   margin: 0 auto;
-  padding: 0 48px 40px;
+  padding: 0 clamp(24px, 3vw, 48px) 40px;
   display: flex;
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
   font-family: var(--mono);
-  font-size: 13px;
+  font-size: 14px;
   letter-spacing: 0.14em;
   color: var(--graphite);
   position: relative;
@@ -881,11 +1397,9 @@ button {
   .ph-scene { display: none; }
 
   .ph-premise { padding-top: 16px; }
-  .ph-headline { font-size: 20px; }
   .ph-year { font-size: 13px; }
 
   .ph-stage-wrap { min-height: 120px; margin-top: 4px; }
-  .ph-hint { font-size: 9.5px; }
 
   .ph-readout {
     grid-template-columns: 1fr;
@@ -898,6 +1412,8 @@ button {
   .ph-chap-body { font-size: 14.5px; }
   .chip { font-size: 10.5px; padding: 4px 11px; }
 
+  .ph-scroll-cue { font-size: 10px; letter-spacing: 0.2em; padding-bottom: 8px; gap: 8px; }
+
   .ph-player { gap: 14px; padding-top: 14px; }
   .ph-play { width: 40px; height: 40px; font-size: 13px; }
   .ph-kf-label { font-size: 8.5px; letter-spacing: 0.06em; }
@@ -908,6 +1424,12 @@ button {
   .ph-kf-label { display: none; }
   .ph-kf-label.active { display: block; }
 
+  .dossier-sheet {
+    width: calc(100vw - 20px);
+    max-height: 90vh;
+    max-height: 90dvh;
+    border-radius: 14px;
+  }
   .dossier-content { padding: 24px 20px 40px; }
   .step-row { grid-template-columns: repeat(2, 1fr); }
 
@@ -921,10 +1443,17 @@ button {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ph-hint, .ph-scene, .ph-read-main, .ph-read-side, .ph-kf.pulse {
+  .ph-scene, .ph-read-main, .ph-read-side, .ph-kf.pulse {
     animation: none !important;
   }
+  .ph-scroll-cue.show .ph-cue-chevron path { animation: none; }
   html { scroll-behavior: auto; }
+
+  /* no fly-out from the button: just fade in place at the center */
+  .dossier-sheet {
+    transform: translate(-50%, -50%) scale(1);
+    transition: opacity 0.3s ease;
+  }
 }
 
 /* Background music mute/unmute toggle */

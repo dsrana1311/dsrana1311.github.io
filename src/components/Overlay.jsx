@@ -7,7 +7,25 @@ const alpha = (hex, a) =>
 
 /* ---------------- per-node bodies ---------------- */
 
-function VideoEmbed({ id }) {
+// Wraps a local looping video so clicking it opens the full version on YouTube.
+// Without an href the video stays a plain, non-interactive loop.
+function VideoLink({ href, children }) {
+  if (!href) return children
+  return (
+    <a
+      className="video-link"
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      aria-label="Watch on YouTube"
+    >
+      {children}
+      <span className="video-link-cue" aria-hidden="true">▶</span>
+    </a>
+  )
+}
+
+function VideoEmbed({ id, href }) {
   const isPlaceholder = id.startsWith('VIDEO_ID')
   const isLocal = /\.(mp4|webm|ogg)$/i.test(id)
   return (
@@ -19,14 +37,16 @@ function VideoEmbed({ id }) {
           <span style={{ opacity: 0.6 }}>add ID in src/content.js</span>
         </div>
       ) : isLocal ? (
-        <video
-          src={id}
-          autoPlay
-          loop
-          muted
-          playsInline
-          preload="metadata"
-        />
+        <VideoLink href={href}>
+          <video
+            src={id}
+            autoPlay
+            loop
+            muted
+            playsInline
+            preload="metadata"
+          />
+        </VideoLink>
       ) : (
         <iframe
           src={`https://www.youtube-nocookie.com/embed/${id}`}
@@ -60,8 +80,8 @@ function EducatorBody({ accent }) {
           FROM THE CHANNEL
         </div>
         <div className="video-grid">
-          {LINKS.featuredVideoIds.map((id) => (
-            <VideoEmbed key={id} id={id} />
+          {LINKS.featuredVideoIds.map((id, i) => (
+            <VideoEmbed key={id} id={id} href={LINKS.featuredVideoLinks[i]} />
           ))}
         </div>
       </div>

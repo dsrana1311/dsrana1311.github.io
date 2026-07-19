@@ -64,8 +64,9 @@ function indexAt(el, nm) {
 // travelling along it passes straight through the center. `H` is the
 // aperture half-height (perpendicular to the axis); `bulge` is how far
 // each face curves from the rim plane (+convex bulges out, −concave
-// scoops in). Both the collision arcs and the drawing derive from the
-// same axis/perp, so they always agree.
+// scoops in). The collision arcs and the drawing derive from the same
+// axis/perp frame (see drawLensBody for how the concave silhouette
+// deliberately differs from its collision arcs).
 function lensGeom(el) {
   const axis = { x: Math.cos(el.angle), y: Math.sin(el.angle) } // optical axis
   const perp = { x: -axis.y, y: axis.x }                        // along the rim
@@ -252,6 +253,47 @@ export function createOpticsEngine(canvas, opts = {}) {
 
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v))
   const rand = (a, b) => a + Math.random() * (b - a)
+
+  // ---------- audio: a short "lock-on" chime when the target is hit ----------
+  // Lazily created on first use (browsers require a user gesture before audio
+  // can start — placing an optic / dragging counts, so by the time a beam
+  // lands on target the context is unlocked).
+  let audioCtx = null
+  function ensureAudio() {
+    if (audioCtx) return audioCtx
+    const AC = window.AudioContext || window.webkitAudioContext
+    if (!AC) return null
+    try { audioCtx = new AC() } catch { audioCtx = null }
+    return audioCtx
+  }
+  function playChime() {
+    const ac = ensureAudio()
+    if (!ac) return
+    if (ac.state === 'suspended') ac.resume().catch(() => {})
+    const now = ac.currentTime
+    // A bright three-note arpeggio (major triad) — reads as "success".
+    const notes = [660, 880, 1320]
+    const master = ac.createGain()
+    master.gain.value = 0.0001
+    master.connect(ac.destination)
+    // gentle overall envelope
+    master.gain.setValueAtTime(0.0001, now)
+    master.gain.exponentialRampToValueAtTime(0.28, now + 0.02)
+    master.gain.exponentialRampToValueAtTime(0.0001, now + 0.55)
+    notes.forEach((freq, i) => {
+      const t0 = now + i * 0.075
+      const osc = ac.createOscillator()
+      const g = ac.createGain()
+      osc.type = 'triangle'
+      osc.frequency.setValueAtTime(freq, t0)
+      g.gain.setValueAtTime(0.0001, t0)
+      g.gain.exponentialRampToValueAtTime(0.9, t0 + 0.015)
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.32)
+      osc.connect(g); g.connect(master)
+      osc.start(t0)
+      osc.stop(t0 + 0.35)
+    })
+  }
 
   // ---------- sizing ----------
   // NOTE: defined after clamp/rand because the immediate resize()
@@ -461,19 +503,31 @@ export function createOpticsEngine(canvas, opts = {}) {
       if (best.kind === 'target') { reached = true; break }
 
       if (best.kind === 'mirror') {
+        // A flat mirror is silvered on ONE face only. Its reflective side
+        // faces +faceNormal (the hatch is drawn on the opposite/back side).
+        // A ray striking the back is absorbed (the beam stops here).
         const { a, b } = best.extra
-        let nrm = norm({ x: -(b.y - a.y), y: b.x - a.x })
-        if (dot(dir, nrm) > 0) nrm = mul(nrm, -1)
-        dir = norm(reflect(dir, nrm))
+        const faceNrm = norm({ x: -(b.y - a.y), y: b.x - a.x })
+        if (dot(dir, faceNrm) > 0) break        // hit the absorbing back → stop
+        dir = norm(reflect(dir, faceNrm))
         origin = add(hit, mul(dir, EPS))
         continue
       }
 
       if (best.kind === 'curvedMirror') {
-        // normal is the radius direction at the hit point
-        const { c } = curvedMirrorGeom(best.ref)
+        // Silvered on the concave/convex FACE only; the back absorbs.
+        // The outward face normal at the vertex points along el.angle; on the
+        // arc, the reflective side is the one whose normal opposes the ray.
+        const el = best.ref
+        const { c } = curvedMirrorGeom(el)
+        // Radius direction at the hit point. Orient it to the SILVERED front:
+        // the reflective face always looks along el.angle (`outward`), toward
+        // the light, for both concave and convex dishes. A ray landing on the
+        // matte back (dir agreeing with the front normal) is absorbed.
         let nrm = norm(sub(hit, c))
-        if (dot(dir, nrm) > 0) nrm = mul(nrm, -1)
+        const outward = { x: Math.cos(el.angle), y: Math.sin(el.angle) }
+        if (dot(nrm, outward) < 0) nrm = mul(nrm, -1)  // face the light side
+        if (dot(dir, nrm) > 0) break                    // hit absorbing back → stop
         dir = norm(reflect(dir, nrm))
         origin = add(hit, mul(dir, EPS))
         continue
@@ -579,8 +633,8 @@ export function createOpticsEngine(canvas, opts = {}) {
     drawSource()
     drawTarget(anyReached)
 
-    if (anyReached && !solved) { solved = true; hitPulse = 1 }
-    if (!anyReached) solved = false
+    if (anyReached && !solved) { solved = true; hitPulse = 1; playChime(); emit() }
+    if (!anyReached && solved) { solved = false; emit() }
     if (hitPulse > 0) hitPulse = Math.max(0, hitPulse - 0.012)
 
     raf = requestAnimationFrame(draw)
@@ -700,20 +754,31 @@ export function createOpticsEngine(canvas, opts = {}) {
     ctx.save()
     if (el.type === 'mirror') {
       const [a, b] = mirrorEnds(el)
+      // Reflective face is +faceNormal; the back (−faceNormal) is a matte,
+      // absorbing backing drawn with hatch ticks so the silvered side reads.
+      const nx = -(b.y - a.y), ny = b.x - a.x
+      const nl = Math.hypot(nx, ny) || 1
+      const ux = nx / nl, uy = ny / nl
+      // matte absorbing backing, offset a hair behind the silvered line
+      ctx.strokeStyle = 'rgba(90,98,116,0.9)'
+      ctx.lineWidth = 3.5
+      ctx.beginPath()
+      ctx.moveTo(a.x - ux * 1.5, a.y - uy * 1.5)
+      ctx.lineTo(b.x - ux * 1.5, b.y - uy * 1.5)
+      ctx.stroke()
+      // silvered reflective face
       ctx.strokeStyle = active ? '#E8EDF4' : '#c9d3e0'
       ctx.lineWidth = 3
       ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke()
-      // reflective face hatch on the back
-      const nx = -(b.y - a.y), ny = b.x - a.x
-      const nl = Math.hypot(nx, ny) || 1
-      ctx.strokeStyle = 'rgba(138,148,166,0.6)'
+      // hatch ticks on the absorbing back
+      ctx.strokeStyle = 'rgba(138,148,166,0.55)'
       ctx.lineWidth = 1
       for (let s = 0.08; s < 1; s += 0.12) {
         const px = a.x + (b.x - a.x) * s
         const py = a.y + (b.y - a.y) * s
         ctx.beginPath()
-        ctx.moveTo(px, py)
-        ctx.lineTo(px - (nx / nl) * 6, py - (ny / nl) * 6)
+        ctx.moveTo(px - ux * 1.5, py - uy * 1.5)
+        ctx.lineTo(px - ux * 6, py - uy * 6)
         ctx.stroke()
       }
     } else if (el.type === 'prism') {
@@ -747,6 +812,13 @@ export function createOpticsEngine(canvas, opts = {}) {
     // direction from center of curvature toward the vertex = middle of the arc
     const toVertex = Math.atan2(vertex.y - c.y, vertex.x - c.x)
     ctx.lineCap = 'round'
+    // matte absorbing backing behind the silvered arc (on the back side)
+    ctx.strokeStyle = 'rgba(90,98,116,0.9)'
+    ctx.lineWidth = 3.5
+    ctx.beginPath()
+    ctx.arc(c.x, c.y, R + 1.6 * el.dish, toVertex - half, toVertex + half)
+    ctx.stroke()
+    // silvered reflective face
     ctx.strokeStyle = active ? '#E8EDF4' : '#c9d3e0'
     ctx.lineWidth = 3
     ctx.beginPath()
@@ -772,37 +844,53 @@ export function createOpticsEngine(canvas, opts = {}) {
   }
 
   function drawLensBody(el, active) {
-    // Sample each face as a short polyline of points on its actual sphere,
-    // so the drawn outline exactly matches the collision geometry. Both
-    // faces span the aperture; walking +axis face one way and −axis face
-    // back the other closes the lens outline.
-    const { perp, H } = lensGeom(el)
-    const [fPos, fNeg] = lensSurfaces(el)
+    // Sample each face as a short polyline of points on a circular arc;
+    // walking the +axis face one way and the −axis face back the other
+    // closes the lens outline.
+    //
+    // CONVEX: the outline exactly matches the collision geometry — each
+    // face's apex pokes OUT to ±bulge and the faces meet at the rim,
+    // giving the classic pointed-oval silhouette.
+    //
+    // CONCAVE: the refracting arcs model a vanishingly thin biconcave
+    // lens, so tracing them literally would render a convex-looking oval.
+    // Instead draw the classic biconcave silhouette — a rim slab ±bulge
+    // thick (matching the collision slab) whose faces scoop inward to a
+    // thin waist. Purely cosmetic; the ray physics is untouched.
+    const { axis, perp, H, bulge, R } = lensGeom(el)
     const N = 18
-    const facePts = (face, dir) => {
+    // walk a face across the aperture; `along(off)` gives its axis coord
+    const facePts = (along, dir) => {
       const pts = []
       for (let i = 0; i <= N; i++) {
-        const s = (dir > 0 ? i : N - i) / N          // 0..1 along the aperture
-        const off = (s * 2 - 1) * H                    // −H..+H across perp
-        // point on the lens rim line at this aperture offset
-        const rimPt = { x: el.x + perp.x * off, y: el.y + perp.y * off }
-        // project onto the sphere: solve for the surface point at this perp
-        // offset. The surface x-along-axis follows the circle through center.
-        const d2 = face.r * face.r - off * off
-        const along = Math.sqrt(Math.max(0, d2))       // dist from sphere center
-        // choose the cap nearest the lens center
-        const toCenter = sub({ x: el.x, y: el.y }, face.c)
-        const axisSign = Math.sign(dot(toCenter, { x: Math.cos(el.angle), y: Math.sin(el.angle) })) || 1
-        const surf = {
-          x: face.c.x + Math.cos(el.angle) * along * axisSign + perp.x * off,
-          y: face.c.y + Math.sin(el.angle) * along * axisSign + perp.y * off,
-        }
-        pts.push(surf)
+        const s = (dir > 0 ? i : N - i) / N        // 0..1 along the aperture
+        const off = (s * 2 - 1) * H                 // −H..+H across perp
+        pts.push({
+          x: el.x + axis.x * along(off) + perp.x * off,
+          y: el.y + axis.y * along(off) + perp.y * off,
+        })
       }
       return pts
     }
-    const a = facePts(fPos, +1)
-    const b = facePts(fNeg, -1)
+    let a, b
+    if (el.convex) {
+      // sagitta of a sphere of radius R at perpendicular distance |off|:
+      // depth = R − sqrt(R² − off²), measured from the apex toward the rim
+      // (the rim plane sits at along = 0).
+      const depth = (off) => R - Math.sqrt(Math.max(0, R * R - off * off))
+      a = facePts((off) => +bulge - depth(off), +1)
+      b = facePts((off) => -bulge + depth(off), -1)
+    } else {
+      // biconcave: faces run from the rim corners (±bulge at off = ±H)
+      // inward to a thin waist on the axis; the straight rim edges at
+      // off = ±H close the outline into an hourglass profile.
+      const waist = bulge * 0.3
+      const D = bulge - waist                       // scoop depth
+      const Rf = (H * H + D * D) / (2 * D)          // face arc radius
+      const scoop = (off) => Rf - Math.sqrt(Math.max(0, Rf * Rf - off * off))
+      a = facePts((off) => +waist + scoop(off), +1)
+      b = facePts((off) => -waist - scoop(off), -1)
+    }
     ctx.beginPath()
     ctx.moveTo(a[0].x, a[0].y)
     for (const p of a.slice(1)) ctx.lineTo(p.x, p.y)
@@ -813,8 +901,7 @@ export function createOpticsEngine(canvas, opts = {}) {
     ctx.strokeStyle = active ? '#7fdcef' : 'rgba(88,196,221,0.75)'
     ctx.lineWidth = active ? 2 : 1.5
     ctx.stroke()
-    // optical-axis tick
-    const axis = { x: Math.cos(el.angle), y: Math.sin(el.angle) }
+    // optical-axis tick (reuses `axis` from lensGeom above)
     const reach = Math.abs(el.bulge) + 8
     ctx.strokeStyle = 'rgba(88,196,221,0.35)'
     ctx.lineWidth = 1
@@ -902,6 +989,7 @@ export function createOpticsEngine(canvas, opts = {}) {
       destroyed = true
       cancelAnimationFrame(raf)
       ro.disconnect()
+      if (audioCtx) { audioCtx.close().catch(() => {}); audioCtx = null }
     },
   }
 }

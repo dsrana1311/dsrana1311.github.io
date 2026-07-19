@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { CHAPTERS, PREMISE } from '../content.js'
+import { CHAPTERS, PREMISE, OPTICS_EGG } from '../content.js'
 import { buildLayouts, piLayout, idlePerturb, STAGE_W, STAGE_H } from '../lib/shapes.js'
 import { tick, chord } from '../lib/audio.js'
 import Dossier from './Dossier.jsx'
+import OpticsEgg from './OpticsEgg.jsx'
+import TransformText from './TransformText.jsx'
 
 const STOPS = CHAPTERS.length - 1 // 4 segments between 5 keyframes
 const PLAY_MS = 20000 // seven years in twenty seconds
@@ -27,11 +29,14 @@ export default function PlayheadScene() {
   const [view, setView] = useState({ t: 0, clock: 0 })
   const [playing, setPlaying] = useState(false)
   const [speed, setSpeed] = useState(1)
-  const [touched, setTouched] = useState(false)
   const [dragging, setDragging] = useState(false)
   const [dossierId, setDossierId] = useState(null)
+  const [dossierFrom, setDossierFrom] = useState(null)
   const [pulse, setPulse] = useState({ idx: -1, stamp: 0 })
   const [eggStart, setEggStart] = useState(0)
+  const [opticsOpen, setOpticsOpen] = useState(false)
+  const [touched, setTouched] = useState(false)
+  const [cueReady, setCueReady] = useState(false)
 
   // refs mirroring state, so the rAF loop and listeners never go stale
   const viewRef = useRef(view)
@@ -40,6 +45,7 @@ export default function PlayheadScene() {
   const soundRef = useRef(true)
   const touchedRef = useRef(false)
   const dossierRef = useRef(null)
+  const opticsRef = useRef(false)
   const eggRef = useRef(0)
   const tweenRef = useRef(0)
   const dragRef = useRef(false)
@@ -60,10 +66,16 @@ export default function PlayheadScene() {
   }, [])
 
   const markTouched = useCallback(() => {
-    if (!touchedRef.current) {
-      touchedRef.current = true
-      setTouched(true)
-    }
+    if (touchedRef.current) return
+    touchedRef.current = true
+    setTouched(true)
+  }, [])
+
+  // the scroll cue waits for the scene to settle before fading in;
+  // it never comes back once the playhead has actually moved
+  useEffect(() => {
+    const id = setTimeout(() => setCueReady(true), 1400)
+    return () => clearTimeout(id)
   }, [])
 
   const stopMotion = useCallback(() => {
@@ -118,6 +130,22 @@ export default function PlayheadScene() {
   const toggleSound = useCallback(() => {
     soundRef.current = !soundRef.current
     if (soundRef.current) tick(lastIdxRef.current)
+  }, [])
+
+  // the hidden optics bench: typing the word parks the playhead and
+  // opens the sandbox on top of whatever scene you were on
+  const openOptics = useCallback(() => {
+    if (opticsRef.current) return
+    opticsRef.current = true
+    setOpticsOpen(true)
+    stopMotion()
+    if (soundRef.current) chord()
+  }, [stopMotion])
+
+  const closeOptics = useCallback(() => {
+    opticsRef.current = false
+    setOpticsOpen(false)
+    typedRef.current = '' // so Esc-then-"r" can't instantly retrigger
   }, [])
 
   const triggerEgg = useCallback(() => {
@@ -201,8 +229,10 @@ export default function PlayheadScene() {
       if (e.key.length === 1) {
         typedRef.current = (typedRef.current + e.key.toLowerCase()).slice(-5)
         if (typedRef.current === 'manim') triggerEgg()
+        else if (typedRef.current === OPTICS_EGG.word) openOptics()
       }
-      if (dossierRef.current) return // Esc is handled by the dossier itself
+      // the optics bench and the dossier own Esc (and the rest) while open
+      if (opticsRef.current || dossierRef.current) return
 
       if (e.code === 'Space') {
         e.preventDefault()
@@ -212,7 +242,7 @@ export default function PlayheadScene() {
         const dir = e.key === 'ArrowRight' ? 1 : -1
         const idx = clamp(Math.round(viewRef.current.t * STOPS) + dir, 0, STOPS)
         tweenTo(idx / STOPS)
-      } else if (/^[1-5]$/.test(e.key)) {
+      } else if (/^[1-4]$/.test(e.key)) {
         tweenTo((Number(e.key) - 1) / STOPS)
       } else if (e.key === 's') {
         toggleSound()
@@ -220,7 +250,7 @@ export default function PlayheadScene() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [togglePlay, tweenTo, toggleSound, triggerEgg])
+  }, [togglePlay, tweenTo, toggleSound, triggerEgg, openOptics])
 
   // a note for the curious
   useEffect(() => {
@@ -229,10 +259,21 @@ export default function PlayheadScene() {
       'background:#0B0E14;color:#58C4DD;font-family:monospace;font-size:14px;padding:6px 4px;border:1px solid #58C4DD;border-radius:4px'
     )
     console.log('%ctry typing "manim" on the page. — DR', 'color:#8A94A6;font-family:monospace')
+    console.log(
+      '%cp.s. "laser" builds you an optics bench. no lesson attached, just a toy.',
+      'color:#8A94A6;font-family:monospace'
+    )
   }, [])
 
-  const openDossier = useCallback((id) => {
+  const openDossier = useCallback((id, e) => {
     stopMotion()
+    // remember where the click came from, as an offset from the viewport
+    // center, so the dossier can grow out of (and shrink back into) it
+    const r = e.currentTarget.getBoundingClientRect()
+    setDossierFrom({
+      x: r.left + r.width / 2 - window.innerWidth / 2,
+      y: r.top + r.height / 2 - window.innerHeight / 2,
+    })
     dossierRef.current = id
     setDossierId(id)
   }, [stopMotion])
@@ -356,21 +397,11 @@ export default function PlayheadScene() {
           <span>/</span>
           <span className="ph-domain">{PREMISE.domain}</span>
           <span style={{ flex: 1 }} />
-          <span className="ph-scene" key={ch.key} style={{ color: ch.color }}>
-            {ch.scene}
-          </span>
-          <button className="ph-mast-btn" onClick={() => tweenTo(1)} title="jump to the end">
-            SKIP TO NOW ⇥
-          </button>
+          <TransformText as="span" className="ph-scene" color={ch.color} text={ch.scene} />
         </header>
 
         {/* premise */}
         <div className="ph-premise">
-          <h1 className="ph-headline">
-            {PREMISE.headline[0]}
-            <br />
-            <span>{PREMISE.headline[1]}</span>
-          </h1>
           <button
             className="ph-year"
             style={{ color: ch.color }}
@@ -457,43 +488,48 @@ export default function PlayheadScene() {
               <circle key={i} cx={p[0]} cy={p[1]} r="3.2" fill={shapeColor} />
             ))}
           </svg>
-
-          <div className={`ph-hint${touched ? ' gone' : ''}`}>⟵ {PREMISE.hint} ⟶</div>
         </div>
 
         {/* chapter readout */}
         <div className="ph-readout">
-          <div className="ph-read-main" key={ch.key}>
-            <div className="ph-chap-label" style={{ color: ch.color }}>
-              {ch.label}
-            </div>
-            <div className="ph-chap-title">{ch.title}</div>
-            <p className="ph-chap-body">{ch.body}</p>
+          <div className="ph-read-main">
+            <TransformText className="ph-chap-label" color={ch.color} text={ch.label} />
+            <TransformText className="ph-chap-title" text={ch.title} />
+            <TransformText as="p" className="ph-chap-body" text={ch.body} />
           </div>
-          <div className="ph-read-side" key={`${ch.key}-side`}>
+          <div className="ph-read-side">
             {ch.dossierLink && (
               <button
                 className="ph-dossier-link"
                 style={{ color: ch.color, borderColor: chipBorder }}
-                onClick={() => openDossier(ch.key)}
+                onClick={(e) => openDossier(ch.key, e)}
               >
-                {ch.dossierLink}
+                <TransformText as="span" text={ch.dossierLink} />
               </button>
             )}
           </div>
         </div>
 
+        {/* scroll cue: this film only plays if you scroll */}
+        <div
+          className={`ph-scroll-cue${cueReady && !touched ? ' show' : ''}`}
+          aria-hidden="true"
+        >
+          <svg
+            className="ph-cue-chevron"
+            width="12"
+            height="15"
+            viewBox="0 0 12 15"
+            style={{ color: ch.color }}
+          >
+            <path d="M1 1.5 L6 6.5 L11 1.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M1 8 L6 13 L11 8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <span>SCROLL TO PLAY</span>
+        </div>
+
         {/* player bar */}
         <div className="ph-player">
-          <button
-            className="ph-play"
-            style={{ borderColor: ch.color, color: ch.color, '--glow': chipBorder }}
-            onClick={togglePlay}
-            aria-label={playing ? 'Pause' : 'Play — seven years in twenty seconds'}
-          >
-            {playing ? '❚❚' : '▶'}
-          </button>
-
           <div
             className="ph-track"
             onPointerDown={onTrackDown}
@@ -549,7 +585,8 @@ export default function PlayheadScene() {
         </div>
       </div>
 
-      <Dossier chapter={dossierChapter} onClose={closeDossier} />
+      <Dossier chapter={dossierChapter} origin={dossierFrom} onClose={closeDossier} />
+      <OpticsEgg open={opticsOpen} onClose={closeOptics} />
     </div>
   )
 }
