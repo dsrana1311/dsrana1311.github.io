@@ -23,7 +23,7 @@ export default function BackgroundMusic() {
     const audio = audioRef.current
     if (!audio) return
 
-    audio.volume = 0.245
+    audio.volume = 0.5
 
     // Start muted and get the element rolling immediately: muted playback is
     // never blocked, so by the time any gesture arrives the track is already
